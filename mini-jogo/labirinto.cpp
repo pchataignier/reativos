@@ -16,6 +16,7 @@
 #define PL_SIDE 2*UNIT/3
 #define X_START PL_SPACE
 #define Y_START 5*UNIT+OFFSET+PL_SPACE
+#define MAX_LEVELS 2
 
 bool win = false;
 SDL_Rect player = {0,0,0,0};
@@ -36,6 +37,8 @@ int stalker_min[MAX_STALKERS];
 int stalker_max[MAX_STALKERS];
 int stalker_pos[MAX_STALKERS];
 unsigned long int stalker_change;
+int deaths;
+
 
 void check_collision(){
 	int i;
@@ -46,6 +49,7 @@ void check_collision(){
 			wall_hit[i] = true;
 			player.x = X_START;
 			player.y = Y_START;
+			deaths++;
 		}
 	}
 
@@ -55,6 +59,7 @@ void check_collision(){
 			gate_hit[i] = true;
 			player.x = X_START;
 			player.y = Y_START;
+			deaths++;
 		}
 	}
 
@@ -64,6 +69,7 @@ void check_collision(){
 			stalker_hit[i] = true;
 			player.x = X_START;
 			player.y = Y_START;
+			deaths++;
 		}
 	}
 
@@ -72,6 +78,7 @@ void check_collision(){
 		if(SDL_HasIntersection(&player, &bounds[i])){
 			player.x = X_START;
 			player.y = Y_START;
+			deaths++;
 		}
 	}
 
@@ -86,6 +93,7 @@ void update(SDL_Renderer* renderer){
 
 	if(win){SDL_SetRenderDrawColor(renderer, 0xFF,0xFF,0xFF,0x00);}
 	else{SDL_SetRenderDrawColor(renderer, 0xC0,0xC0,0xC0,0x00);}
+
     SDL_RenderFillRect(renderer, NULL);
 
 	//Bounds
@@ -169,14 +177,15 @@ void update(SDL_Renderer* renderer){
 	SDL_RenderPresent(renderer);
 }
 
-void load_level(char num_level){
+void load_level(char num_level_1, char num_level_2){
 
 	int i;
 	int w_hor, w_ver, g_hor, g_ver, s_hor, s_ver;
 	SDL_Rect r;
-	char level[] = "level_.txt";
-	level[5] = num_level;
-	FILE* arq = fopen("level1.txt", "r");
+	char level[] = "level__.txt";
+	level[5] = num_level_1;
+	level[6] = num_level_2;
+	FILE* arq = fopen(level, "r");
 	assert(level != NULL);
 
 	fscanf(arq, "%d %d %d %d %d %d", &w_hor, &w_ver, &g_hor, &g_ver, &s_hor, &s_ver);
@@ -299,38 +308,54 @@ int main (int argc, char* args[])
     SDL_Renderer* renderer = SDL_CreateRenderer(window, -1, 0);
     assert(renderer != NULL);
 
+	char num_level_1 = '0';
+	char num_level_2 = '0';
+	int i = MAX_LEVELS;
+
     /* EXECUTION */
 	
 	SDL_Event e;
 
-	load_level('1');
-    while (!win)
-    {
-		if(SDL_PollEvent(&e) != 0){
-			if (e.type == SDL_QUIT) {
-			    break;
-			}
-			else if (e.type == SDL_KEYDOWN) {
-				switch (e.key.keysym.sym) {
-				case SDLK_UP:
-						player.y -= 10;
-						break;
-					case SDLK_DOWN:
-						player.y += 10;
-						break;
-					case SDLK_LEFT:
-						player.x -= 10;
-						break;
-					case SDLK_RIGHT:
-						player.x += 10;
-						break;
+	while(i--){
+		load_level(num_level_1, num_level_2);
+		win = false;
+		deaths = 0;
+		while (!win)
+		{
+			if(SDL_PollEvent(&e) != 0){
+				if (e.type == SDL_QUIT) {
+				    break;
+				}
+				else if (e.type == SDL_KEYDOWN) {
+					switch (e.key.keysym.sym) {
+					case SDLK_UP:
+							player.y -= 10;
+							break;
+						case SDLK_DOWN:
+							player.y += 10;
+							break;
+						case SDLK_LEFT:
+							player.x -= 10;
+							break;
+						case SDLK_RIGHT:
+							player.x += 10;
+							break;
+					}	
 				}
 			}
-		}
 
-		check_collision();
-		update(renderer);
-		if(win){SDL_Delay(5000);}
+			check_collision();
+			update(renderer);
+			if(win){
+				num_level_2++;
+				if(num_level_2 > '9'){
+					num_level_1++;
+					num_level_2 = '0';
+					if(num_level_1 > '9'){num_level_1 = '0'; num_level_2 = '0';}
+				}
+				SDL_Delay(5000);
+			}
+		}
 	}
 
     /* FINALIZATION */
