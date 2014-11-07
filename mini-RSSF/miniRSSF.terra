@@ -1,0 +1,77 @@
+#include "/home/terra/TerraNet_v0.1/terra/TerraNet.defs"
+
+var ushort nodeId = getNodeId();
+
+pktype usrMsg from radioMsg with
+	var ubyte[4] d8;
+	var ushort[4] d16;
+	var ulong[2] d32;
+end
+
+var ubyte ret;
+var ushort parent;
+var usrMsg msgMap;
+var usrMsg msgTemp;
+var usrMsg msgRadio;
+
+msgMap.target = BROADCAST;
+msgMap.type = 0;
+msgRadio.type = 1;
+msgTemp.type = 1;
+msgTemp.d16[0] = nodeId;
+
+if nodeId == 11 then
+	await 3s;
+	parent = 1;
+	msgMap.source = nodeId;
+	emit SEND(msgMap);
+	await SEND_DONE;
+else
+	msgMap = await RECEIVE(0);
+	emit LED0(TOGGLE);
+	parent = msgMap.source;
+	msgMap.source = nodeId;
+	emit SEND(msgMap);
+	await SEND_DONE;
+end
+
+par do
+	loop do
+		await (10 + (nodeId % 10))s;
+		emit REQ_TEMP();
+		msgTemp.d16[1] = await TEMP;
+		ret = qPut(msgTemp);
+	end
+with
+	loop do
+		await Q_READY();
+		loop do
+			ret = qGet(msgRadio);
+			msgRadio.target = parent;
+			msgRadio.source = nodeId;
+			loop do
+				emit SEND_ACK(msgRadio);
+				var ubyte ack = await SEND_DONE_ACK;
+				if ack then
+					break;
+				end
+			end
+			if (qSize() == 0) then
+				break;
+			end
+		end
+	end
+with
+	loop do
+		msgRadio = await RECEIVE(1);
+		ret = qPut(msgRadio);
+	end
+end
+
+
+
+
+
+
+
+
